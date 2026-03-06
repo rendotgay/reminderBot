@@ -1,0 +1,10 @@
+{
+    "token": "YOUR_DISCORD_TOKEN_HERE",
+    "low_priority_color": "90EE90",
+    "medium_priority_color": "EEBF90",
+    "high_priority_color": "EE9090",
+    "hide_confirmation_message": "False",
+    "default_timezone": "EST5DST",
+    "default_channel": "",
+    "default_reminder_option": "Last"
+}

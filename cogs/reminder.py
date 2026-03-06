@@ -1,0 +1,216 @@
+import re
+from datetime import datetime, timedelta, timezone
+from typing import List
+
+import dateparser
+import disnake
+import pytz
+from disnake import Embed, OptionChoice
+from disnake.ext import commands
+
+from colors import get_color_from_priority
+from config import get_setting
+from console_colors import RED, RESET
+from db import add_reminder, get_user_tz, get_last_location, get_previous_locations
+from util import update_users, compute_next_due
+
+
+class ReminderCog(commands.Cog):
+    def __init__(self, bot: commands.InteractionBot):
+        self.bot = bot
+
+
+    @staticmethod
+    async def auto_frequency(
+            inter: disnake.ApplicationCommandInteraction,
+            current: str,
+    ) -> List[str]:
+        string = current.lower().strip()
+        options = ["once"]
+        intervals = [
+            "daily",
+            "weekly",
+            "every other week",
+            "monthly",
+            "every other month"
+        ]
+        num_pattern = r'\b\d+\.\d+\b|\b\d+'
+        all_nums = re.findall(num_pattern, string)
+        if all_nums:
+            for num in all_nums:
+                options.append(f"{num} times per day")
+                options.append(f"every {num} days")
+                options.append(f"{num} times per week")
+                options.append(f"every {num} weeks")
+        for i in intervals:
+            if string in i:
+                options.append(i)
+        return options[:25]
+
+
+    async def auto_destination(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+            current: str,
+    ) -> List[str]:
+        c = current.lower().strip()
+        seen = set()
+        d = []
+        if c in "here":
+            d.append(OptionChoice(name="Here", value=str(inter.channel.id)))
+        if c in "last":
+            d.append(OptionChoice(name="Last", value=str(get_last_location(inter.user.id)[0])))
+        if c in "dm" or c in "direct message":
+            d.append(OptionChoice(name="Direct Message", value="Direct Message"))
+        previous_locations = get_previous_locations(inter.user.id)
+        for location in previous_locations:
+            location = location[0]
+            if location != "Direct Message":
+                channel = await self.bot.fetch_channel(int(location))
+                if channel and c in channel.name.lower():
+                    seen.add(channel.id)
+                    d.append(OptionChoice(name=f"#{channel.name}", value=str(channel.id)))
+        if type(inter.channel) != disnake.DMChannel:
+            guild = inter.guild
+            for channel in guild.text_channels:
+                if channel.id not in seen and c in channel.name.lower():
+                    d.append(OptionChoice(name=f"#{channel.name}", value=str(channel.id)))
+        if current:
+            d = sorted(d, key=lambda choice: (choice.name.lower().find(c), choice.name.lower()))
+        return d[:25]
+
+
+    @staticmethod
+    async def auto_time(
+            inter: disnake.ApplicationCommandInteraction,
+            current: str,
+    ):
+        tz = get_user_tz(inter.user.id)
+        if not tz:
+            tz = get_setting("default_timezone")
+        if current == "" or current == "now":
+            now = datetime.now(pytz.timezone(tz))
+            return [OptionChoice(name="Now", value=str(now))]
+        else:
+            settings = {'TIMEZONE': tz, 'RETURN_AS_TIMEZONE_AWARE': True}
+            parsed_time = dateparser.parse(current, settings=settings)
+            if parsed_time is None:
+                now = datetime.now(pytz.timezone(tz))
+                return [OptionChoice(name="Now", value=str(now))]
+            else:
+                return [OptionChoice(name=parsed_time.strftime("%A, %B %d %Y %I:%M %p"), value=str(parsed_time))]
+
+
+
+    @commands.slash_command(
+        name="reminder",
+        description="Manage reminders"
+    )
+    @commands.install_types(guild=True, user=True)
+    @commands.contexts(guild=True, bot_dm=True, private_channel=True)
+    async def reminder(self, inter):
+        pass
+
+
+    @reminder.sub_command(
+        name="create",
+        description="Create a new reminder"
+    )
+    async def reminder_create(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+            user: disnake.User | disnake.Member,
+            frequency: str = commands.Param(
+                description="How often should this reminder occur?",
+                autocomplete=auto_frequency
+            ),
+            time: str = commands.Param(
+                description="When should this reminder occur?",
+                autocomplete=auto_time,
+                default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+            title: str = commands.Param(
+                description="Name to give the reminder?",
+            ),
+            message: str = commands.Param(
+                description="Extra details about the reminder?",
+                default=""
+            ),
+            priority: str = commands.Param(
+                description="How important is this reminder?",
+                choices=["low", "medium", "high"],
+                default="low"
+            ),
+            destination: str = commands.Param(
+                description="Where should this reminder be sent?",
+                autocomplete=auto_destination,
+                default=get_setting("default_reminder_option"),
+            ),
+            hide_message: bool = commands.Param(
+                description="Hide the confirmation message of this command?",
+                default=get_setting("hide_confirmation_message").lower() == "true",
+            ),
+    ):
+        update_users(self.bot, target=user)
+
+        if destination == "Here":
+            destination = inter.channel.id
+
+        if destination == "Default":
+            destination = get_setting("default_reminder_channel")
+            if not destination:
+                print(f"[ERROR] No default reminder channel set")
+                destination = inter.channel.id
+        if destination == "Last":
+            destination = get_last_location(inter.user.id)
+            if not destination:
+                destination = get_setting("default_reminder_channel")
+                if not destination:
+                    destination = inter.channel.id
+
+        time = datetime.fromisoformat(time)
+        now = datetime.now(timezone.utc)
+        if now + timedelta(minutes=5) >= time.astimezone(timezone.utc):
+            if frequency.lower() != "once":
+                time = compute_next_due(now, time, frequency)
+            else:
+                time = now
+        try:
+            add_reminder(
+                creator_id=inter.user.id,
+                remindee_id=user.id,
+                time=time,
+                frequency=frequency,
+                title=title,
+                message=message,
+                priority=priority,
+                destination=destination,
+            )
+            description = [
+                f"Reminder created for {user.mention}."
+            ]
+            if message:
+                description.append(f'*"{message}"*',)
+            embed = Embed(
+                color=get_color_from_priority("low"),
+                title=title,
+                description="\n".join(description),
+                timestamp=time,
+            )
+            embed.set_author(name="Reminder created!")
+            embed.set_footer(text="Next reminder")
+        except Exception as e:
+            print(f"{RED}[ERROR] Failed to create reminder: {e}{RESET}")
+            embed = Embed(
+                color=get_color_from_priority("high"),
+                title="Error",
+                description=f"Failed to create reminder: {e}"
+            )
+        await inter.response.send_message(
+            embed=embed,
+            ephemeral=hide_message,
+        )
+
+
+def setup(bot: commands.InteractionBot):
+    bot.add_cog(ReminderCog(bot))
