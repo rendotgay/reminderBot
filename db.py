@@ -62,7 +62,7 @@ def get_reminders():
 def update_reminder_time(creator_id, remindee_id, time):
     with get_db() as db:
         db.execute(
-            "UPDATE reminders SET time = ? WHERE creator = ? AND remindee = ?",
+            "UPDATE reminders SET time = ? AND completed = FALSE WHERE creator = ? AND remindee = ?",
             (time, creator_id, remindee_id)
         )
 

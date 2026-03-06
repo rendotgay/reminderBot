@@ -1,6 +1,6 @@
 # reminderBot
 
-A Discord bot to set reminders!
+A Python Discord bot to set and receive reminders
 
 ## Features
 - Timezone aware
@@ -9,6 +9,7 @@ A Discord bot to set reminders!
 
 ## Planned Features
 - Mark reminders as completed
+- Completed alerts
 - Group reminders
 - List reminders
 - Delete reminders
