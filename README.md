@@ -8,6 +8,7 @@ A Discord bot to set reminders!
 - Repeating reminders
 
 ## Planned Features
+- Mark reminders as completed
 - Group reminders
 - List reminders
 - Delete reminders
