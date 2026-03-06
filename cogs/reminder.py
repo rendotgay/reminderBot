@@ -58,8 +58,9 @@ class ReminderCog(commands.Cog):
         d = []
         if c in "here":
             d.append(OptionChoice(name="Here", value=str(inter.channel.id)))
-        if c in "last":
-            d.append(OptionChoice(name="Last", value=str(get_last_location(inter.user.id)[0])))
+        last_location = get_last_location(inter.user.id)
+        if c in "last" and last_location:
+            d.append(OptionChoice(name="Last", value=str(last_location[0])))
         if c in "dm" or c in "direct message":
             d.append(OptionChoice(name="Direct Message", value="Direct Message"))
         previous_locations = get_previous_locations(inter.user.id)
@@ -127,7 +128,7 @@ class ReminderCog(commands.Cog):
             time: str = commands.Param(
                 description="When should this reminder occur?",
                 autocomplete=auto_time,
-                default=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                default=str(datetime.now()),
             ),
             title: str = commands.Param(
                 description="Name to give the reminder?",
@@ -168,7 +169,23 @@ class ReminderCog(commands.Cog):
                 if not destination:
                     destination = inter.channel.id
 
-        time = datetime.fromisoformat(time)
+        try:
+            time = datetime.fromisoformat(time)
+        except ValueError:
+            try:
+                time = datetime.strptime(time, "%A, %B %d %Y %I:%M %p")
+            except Exception as e:
+                print(f"{RED}[ERROR] Failed to parse time: {e}{RESET}")
+                embed = Embed(
+                    color=get_color_from_priority("high"),
+                    title="Error",
+                    description=f"Failed to parse time for reminder: {e}"
+                )
+                await inter.response.send_message(
+                    embed=embed,
+                    ephemeral=True,
+                )
+                return
         now = datetime.now(timezone.utc)
         if now + timedelta(minutes=5) >= time.astimezone(timezone.utc):
             if frequency.lower() != "once":
@@ -179,6 +196,16 @@ class ReminderCog(commands.Cog):
             add_reminder(
                 creator_id=inter.user.id,
                 remindee_id=user.id,
+                time=time,
+                frequency=frequency,
+                title=title,
+                message=message,
+                priority=priority,
+                destination=destination,
+            )
+            self.bot.get_cog("SendReminderCog")._schedule_one(
+                creator=inter.user.id,
+                remindee=user.id,
                 time=time,
                 frequency=frequency,
                 title=title,
@@ -206,6 +233,7 @@ class ReminderCog(commands.Cog):
                 title="Error",
                 description=f"Failed to create reminder: {e}"
             )
+            hide_message = True
         await inter.response.send_message(
             embed=embed,
             ephemeral=hide_message,

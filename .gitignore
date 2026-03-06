@@ -245,7 +245,7 @@ http-client.private.env.json
 
 # Custom
 test.py
-#config.json
+config.json
 reminders.db
 reminders.db-shm
 reminders.db-wal

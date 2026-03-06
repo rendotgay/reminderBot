@@ -6,9 +6,9 @@ A Python Discord bot to set and receive reminders
 - Timezone aware
 - Different priorities with custom colors
 - Repeating reminders
+- Mark reminders as completed
 
 ## Planned Features
-- Mark reminders as completed
 - Completed alerts
 - Group reminders
 - List reminders

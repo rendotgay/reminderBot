@@ -74,7 +74,12 @@ def delete_reminder(creator_id, remindee_id, title):
 
 def complete_reminder(creator_id, remindee_id, title):
     with get_db() as db:
-        db.execute("UPDATE reminders SET completed = 1 WHERE creator = ? AND remindee = ? AND title = ?", (creator_id, remindee_id, title))
+        db.execute("UPDATE reminders SET completed = TRUE WHERE creator = ? AND remindee = ? AND title = ?", (creator_id, remindee_id, title))
+
+
+def undo_complete_reminder(creator_id, remindee_id, title):
+    with get_db() as db:
+        db.execute("UPDATE reminders SET completed = FALSE WHERE creator = ? AND remindee = ? AND title = ?", (creator_id, remindee_id, title))
 
 
 def get_last_location(user_id):
@@ -86,8 +91,7 @@ def get_last_location(user_id):
         if result:
             return result
         return db.execute(
-            "SELECT destination FROM reminders WHERE destination != 'Direct Message'",
-            (user_id,)
+            "SELECT destination FROM reminders WHERE destination != 'Direct Message'"
         ).fetchone()
 
 

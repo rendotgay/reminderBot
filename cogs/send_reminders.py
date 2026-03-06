@@ -9,6 +9,7 @@ from colors import get_color_from_priority
 from console_colors import RED, YELLOW, RESET, GREEN
 from db import get_user, get_reminders, delete_reminder, update_reminder_time
 from util import _as_aware_utc, compute_next_due, update_users
+from views import ReminderView
 
 
 class SendReminderCog(commands.Cog):
@@ -43,6 +44,7 @@ class SendReminderCog(commands.Cog):
             timestamp=time,
         )
         embed.set_author(name=creator['display_name'], icon_url=creator['avatar_url'])
+        view = ReminderView(creator['id'], remindee, title, embed, frequency)
         try:
             remindee = await self.bot.fetch_user(remindee)
         except Exception as e:
@@ -51,14 +53,16 @@ class SendReminderCog(commands.Cog):
         if destination and destination != "Direct Message":
             try:
                 channel = await self.bot.fetch_channel(destination)
-                await channel.send(content=remindee.mention, embed=embed)
-                await self.reschedule(creator['id'], remindee.id, time, frequency, title, message, priority, destination)
+                await channel.send(content=remindee.mention, embed=embed, view=view)
+                if frequency.lower() != "once":
+                    await self.reschedule(creator['id'], remindee.id, time, frequency, title, message, priority, destination)
                 return
             except Exception as e:
                 print(f"{RED}[ERROR] Failed to send reminder to {YELLOW}{remindee.display_name}{RED} in {YELLOW}{destination}{RED}: {e}{RESET}")
         try:
-            await remindee.send(embed=embed)
-            await self.reschedule(creator['id'], remindee.id, time, frequency, title, message, priority, destination)
+            await remindee.send(embed=embed, view=view)
+            if frequency.lower() != "once":
+                await self.reschedule(creator['id'], remindee.id, time, frequency, title, message, priority, destination)
         except Exception as e:
             print(f"{RED}[ERROR] Failed to send reminder to {YELLOW}{remindee.display_name}{RED}: {e}{RESET}")
             return
@@ -105,7 +109,6 @@ class SendReminderCog(commands.Cog):
 
     async def reschedule(self, creator, remindee, time, frequency, title, message, priority, destination):
         if frequency.lower() == "once":
-            delete_reminder(creator, remindee, title)
             return
         now = datetime.now(timezone.utc)
         next_due = compute_next_due(now, time, frequency)
