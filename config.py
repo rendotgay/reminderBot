@@ -12,6 +12,7 @@ def _load():
             "medium_priority_color": "EEBF90",
             "high_priority_color": "EE9090",
             "hide_confirmation_message": "False",
+            "hide_list_message": "False",
             "default_timezone": "EST5EDT",
             "default_channel": "",
             "default_reminder_option": "Last"
