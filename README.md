@@ -23,6 +23,14 @@ A Python Discord bot to set and receive reminders
 - DateTime and PyTZ (Timezone aware datetime handling)
 
 ## Installation
+### Install using built executable
+1. Download the latest release from the [releases page](https://github.com/Serenity-Bot/reminderBot/releases)
+2. Extract the archive
+3. Modify the `config.json`
+    - Enter your bot token
+    - Adjust default timezone and channel to your liking
+4. Run the executable
+### Install with Python
 1. Obtain a bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
 2. Clone the repository (or download the project files)
 3. Create a virtual environment
