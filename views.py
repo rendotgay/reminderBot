@@ -39,7 +39,7 @@ class ReminderView(View):
             embed = Embed(
                 color=get_color_from_priority("low"),
                 title="Reminder completed!",
-                description=f'{remindee['display_name']} completed "*{self.title}*" by {creator['display_name']}'
+                description=f'{remindee["display_name"]} completed "*{self.title}*" by {creator["display_name"]}'
             )
             view = UndoCompleteView(self.creator, self.remindee, self.title, self.embed)
             await inter.response.edit_message(embed=embed, view=view, content=None)

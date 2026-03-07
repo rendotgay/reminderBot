@@ -1,9 +1,8 @@
-import os
 import disnake
 from disnake.ext import commands
-from dotenv import load_dotenv
 
 from config import get_setting
+from console_colors import YELLOW, RESET, RED
 from db import create_tables
 
 intents = disnake.Intents.default()
@@ -22,26 +21,21 @@ EXTENSIONS = (
 
 def load_extensions() -> None:
     for ext in EXTENSIONS:
+        print(f"{YELLOW}[INFO] Loading {ext.replace('cogs.', '')}{RESET}")
         try:
             bot.load_extension(ext)
         except Exception as e:
-            print(f"[ERROR] Failed to load extension {ext}: {e}")
+            print(f"{RED}[ERROR] Failed to load extension {ext}: {e}")
             raise
 
 def main() -> None:
     token = get_setting("token")
     if not token:
-        raise RuntimeError("DISCORD_TOKEN not set")
+        raise RuntimeError(f"{RED}[ERROR] DISCORD_TOKEN not set{RESET}")
 
     create_tables()
     load_extensions()
     bot.run(token)
-
-# async def start(token):
-#     print("Starting bot...")
-#     create_tables()
-#     load_extensions()
-#     await bot.start(token)
 
 if __name__ == "__main__":
     main()

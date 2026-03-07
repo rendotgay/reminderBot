@@ -7,18 +7,20 @@ A Python Discord bot to set and receive reminders
 - Different priorities with custom colors
 - Repeating reminders
 - Mark reminders as completed
+- List reminders
 
 ## Planned Features
 - Completed alerts
 - Group reminders
-- List reminders
 - Delete reminders
+- Language support
 
 ### Technology Stack
 - Disnake (Fork of discord.py, a Discord API python wrapper)
-- SQLite3
-- APScheduler
-- DateParser
+- SQLite3 (Database for persistent reminders)
+- APScheduler (Scheduling for recurring reminders)
+- DateParser (Parse date and time from user strings)
+- DateTime and PyTZ (Timezone aware datetime handling)
 
 ## Installation
 1. Obtain a bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
@@ -44,3 +46,4 @@ A Python Discord bot to set and receive reminders
    
 ## Usage
 - `/reminder create` - Create a new reminder
+- `/reminder list` - List all reminders`

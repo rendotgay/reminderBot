@@ -11,7 +11,7 @@ from disnake.ext import commands
 from colors import get_color_from_priority
 from config import get_setting
 from console_colors import RED, RESET
-from db import add_reminder, get_user_tz, get_last_location, get_previous_locations
+from db import add_reminder, get_user_tz, get_last_location, get_previous_locations, get_users_reminders
 from util import update_users, compute_next_due
 
 
@@ -100,7 +100,6 @@ class ReminderCog(commands.Cog):
                 return [OptionChoice(name="Now", value=str(now))]
             else:
                 return [OptionChoice(name=parsed_time.strftime("%A, %B %d %Y %I:%M %p"), value=str(parsed_time))]
-
 
 
     @commands.slash_command(
@@ -238,6 +237,55 @@ class ReminderCog(commands.Cog):
             embed=embed,
             ephemeral=hide_message,
         )
+
+    @reminder.sub_command(
+        name="list",
+        description="List reminders"
+    )
+    async def reminder_list(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+            user: disnake.User | disnake.Member = commands.Param(
+                description="Who's reminders should be listed?",
+                default=None,
+            ),
+            completed: bool = commands.Param(
+                description="Show completed reminders?",
+                default=False,
+            ),
+            hide_message: bool = commands.Param(
+                description="Hide your reminder list",
+                default=get_setting("hide_list_message").lower() == "true",
+            )
+    ):
+        if not user:
+            user = inter.user
+        reminders = get_users_reminders(user.id, completed)
+        if not reminders:
+            embed = Embed(
+                color=get_color_from_priority("high"),
+                title="No reminders",
+                description="You have no reminders."
+            )
+            await inter.response.send_message(embed=embed, ephemeral=hide_message)
+            return
+        creators = {}
+        reminder_list = []
+        for reminder in reminders:
+            if reminder["creator"] not in creators:
+                creator = await self.bot.fetch_user(reminder["creator"])
+                creators[reminder["creator"]] = creator
+            else:
+                creator = creators[reminder["creator"]]
+            completed_string = "~~" if reminder["completed"] else ""
+            reminder_list.append(f"{completed_string}**{creator.display_name}**: {reminder['title']}{completed_string}")
+
+        embed = Embed(
+            color=get_color_from_priority("low"),
+            title=f"{user.display_name}'s reminders",
+            description="\n".join(reminder_list)
+        )
+        await inter.response.send_message(embed=embed, ephemeral=hide_message)
 
 
 def setup(bot: commands.InteractionBot):

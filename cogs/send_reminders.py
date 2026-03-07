@@ -1,13 +1,13 @@
 from datetime import datetime, timezone, timedelta
 
-from disnake import Embed
-from disnake.ext import commands
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from disnake import Embed
+from disnake.ext import commands
 
 from colors import get_color_from_priority
-from console_colors import RED, YELLOW, RESET, GREEN
-from db import get_user, get_reminders, delete_reminder, update_reminder_time
+from console_colors import RED, YELLOW, RESET, GREEN, CYAN
+from db import get_user, get_reminders, update_reminder_time
 from util import _as_aware_utc, compute_next_due, update_users
 from views import ReminderView
 
@@ -82,7 +82,7 @@ class SendReminderCog(commands.Cog):
         run_at = _as_aware_utc(time)
         jid = self._job_id(creator, remindee, title)
 
-        print(f"{GREEN}scheduled {YELLOW}{jid}{GREEN} at {YELLOW}{run_at.isoformat()}{RESET}")
+        print(f"{GREEN}scheduled {YELLOW}{title}{GREEN} at {YELLOW}{run_at.strftime("%A, %B %d %Y %I:%M %p")} UTC{RESET}")
 
         self.scheduler.add_job(
             self.send_reminder,
@@ -102,9 +102,12 @@ class SendReminderCog(commands.Cog):
         for row in reminders:
             creator, remindee, time, frequency, title, message, priority, destination, completed = row
             due = _as_aware_utc(datetime.fromisoformat(time))
+            if completed and frequency.lower() == "once":
+                continue
             if due <= now:
                 due = now + timedelta(seconds=5)
             self._schedule_one(creator, remindee, due, frequency, title, message, priority, destination)
+        print(f"{CYAN}Loaded {GREEN}{len(reminders)}{CYAN} persistent reminder{'s' if len(reminders) != 1 else ''}")
 
 
     async def reschedule(self, creator, remindee, time, frequency, title, message, priority, destination):
@@ -118,7 +121,6 @@ class SendReminderCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"{GREEN}Reminders loaded!{RESET}")
         if not self.scheduler.running:
             self.scheduler.start()
         await self.load_persistent_reminders()

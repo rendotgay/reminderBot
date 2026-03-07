@@ -59,6 +59,20 @@ def get_reminders():
         return db.execute("SELECT * FROM reminders").fetchall()
 
 
+def get_users_reminders(user_id, completed=False):
+    with get_db() as db:
+        if completed:
+            return db.execute(
+                "SELECT * FROM reminders WHERE creator = ?",
+                (user_id,)
+            ).fetchall()
+        else:
+            return db.execute(
+                "SELECT * FROM reminders WHERE creator = ? AND completed = FALSE",
+                (user_id,)
+            ).fetchall()
+
+
 def update_reminder_time(creator_id, remindee_id, time):
     with get_db() as db:
         db.execute(
