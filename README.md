@@ -15,7 +15,7 @@ A Python Discord bot to set and receive reminders
 - Delete reminders
 - Language support
 
-### Technology Stack
+## Technology Stack
 - Disnake (Fork of discord.py, a Discord API python wrapper)
 - SQLite3 (Database for persistent reminders)
 - APScheduler (Scheduling for recurring reminders)
