@@ -16,7 +16,7 @@ class LifecycleCog(commands.Cog):
         await self.bot.change_presence(
             activity=disnake.CustomActivity(name="testing!")
         )
-        print(f"{CYAN}Logged in as {YELLOW}{self.bot.user}{CYAN}!{RESET}")
+        print(f"{CYAN}Logged in as {GREEN}{self.bot.user}{CYAN}!{RESET}")
         update_users(self.bot)
 
 

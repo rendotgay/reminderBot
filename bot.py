@@ -1,16 +1,21 @@
+import asyncio
+
 import disnake
+from disnake import LoginFailure
 from disnake.ext import commands
 
-from config import get_setting
+from config import get_setting, set_setting
 from console_colors import YELLOW, RESET, RED
 from db import create_tables
 
-intents = disnake.Intents.default()
-intents.message_content = True
-intents.reactions = True
-intents.members = True
+def create_bot():
+    intents = disnake.Intents.default()
+    intents.message_content = True
+    intents.reactions = True
+    intents.members = True
+    return commands.InteractionBot(intents=intents)
 
-bot = commands.InteractionBot(intents=intents)
+
 # bot.i18n.load("locale/")
 
 EXTENSIONS = (
@@ -19,7 +24,8 @@ EXTENSIONS = (
     "cogs.send_reminders",
 )
 
-def load_extensions() -> None:
+
+def load_extensions(bot) -> None:
     for ext in EXTENSIONS:
         print(f"{YELLOW}[INFO] Loading {ext.replace('cogs.', '')}{RESET}")
         try:
@@ -28,14 +34,35 @@ def load_extensions() -> None:
             print(f"{RED}[ERROR] Failed to load extension {ext}: {e}")
             raise
 
-def main() -> None:
-    token = get_setting("token")
-    if not token:
-        raise RuntimeError(f"{RED}[ERROR] DISCORD_TOKEN not set{RESET}")
 
+def main():
     create_tables()
-    load_extensions()
-    bot.run(token)
+
+    while True:
+        token = get_token()
+        bot = create_bot()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            load_extensions(bot)
+            bot.run(token)
+            break
+        except LoginFailure:
+            print(f"{RED}[ERROR] Invalid token.{RESET}")
+            set_setting("token", None)
+
+
+def get_token():
+    token = get_setting("token")
+    while not token:
+        print(f"{RED}[ERROR] Valid Discord token not set!{RESET}")
+        print(f"{YELLOW}To get a token, visit https://discord.com/developers/applications{RESET}")
+        print(f"{YELLOW}Please enter your token...{RESET}")
+        token = input().strip()
+        set_setting("token", token)
+    return token
 
 if __name__ == "__main__":
     main()
