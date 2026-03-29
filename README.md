@@ -27,9 +27,8 @@ A Python Discord bot to set and receive reminders
 ## Installation
 ### Install using built executable
 1. Download the latest release from the [releases page](https://github.com/rendotgay/reminderBot/releases/)
-2. Extract the archive
+2. Run the executable and paste your [bot token]((https://discord.com/developers/applications))
 3. Modify the `config.json`
-    - Enter your bot token
     - Adjust default timezone and channel to your liking
 4. Run the executable
 ### Install with Python
