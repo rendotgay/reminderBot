@@ -127,10 +127,13 @@ def get_previous_locations(user_id):
 
 def is_reminder_completed(creator_id: int, remindee_id: int, title: str) -> bool:
     with get_db() as db:
-        return db.execute(
-            "SELECT completed FROM reminders WHERE creator = ? AND remindee = ? AND title = ?",
-            (creator_id, remindee_id, title)
-        ).fetchone()['completed']
+        try:
+            return db.execute(
+                "SELECT completed FROM reminders WHERE creator = ? AND remindee = ? AND title = ?",
+                (creator_id, remindee_id, title)
+            ).fetchone()['completed']
+        except TypeError:
+            return True
 
 
 if __name__ == "__main__":
