@@ -12,13 +12,12 @@ from colors import get_color_from_priority
 from config import get_setting
 from console_colors import RED, RESET
 from db import add_reminder, get_user_tz, get_last_location, get_previous_locations, get_users_reminders
-from util import update_users, compute_next_due
+from util import update_users, compute_next_due, normalize_frequency
 
 
 class ReminderCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
-
 
     @staticmethod
     async def auto_frequency(
@@ -27,24 +26,64 @@ class ReminderCog(commands.Cog):
     ) -> List[str]:
         string = current.lower().strip()
         options = ["once"]
+
         intervals = [
+            "hourly",
             "daily",
             "weekly",
             "every other week",
             "monthly",
             "every other month"
         ]
-        num_pattern = r'\b\d+\.\d+\b|\b\d+'
+
+        units = {
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+            "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+            "nineteen": 19
+        }
+
+        tens = {
+            "twenty": 20, "thirty": 30, "forty": 40,
+            "fifty": 50, "sixty": 60, "seventy": 70,
+            "eighty": 80, "ninety": 90
+        }
+
+        num_pattern = r"\b\d+\.\d+\b|\b\d+"
         all_nums = re.findall(num_pattern, string)
+
+        tokens = re.findall(r"\b[a-z]+\b", string)
+
+        i = 0
+        while i < len(tokens):
+            word = tokens[i]
+
+            if word in tens:
+                value = tens[word]
+                if i + 1 < len(tokens) and tokens[i + 1] in units:
+                    value += units[tokens[i + 1]]
+                    i += 1
+                all_nums.append(str(value))
+
+            elif word in units:
+                all_nums.append(str(units[word]))
+
+            i += 1
+
         if all_nums:
             for num in all_nums:
+                options.append(f"{num} times per hour")
+                options.append(f"every {num} hours")
                 options.append(f"{num} times per day")
                 options.append(f"every {num} days")
                 options.append(f"{num} times per week")
                 options.append(f"every {num} weeks")
+
         for i in intervals:
             if string in i:
                 options.append(i)
+
         return options[:25]
 
 
@@ -124,10 +163,19 @@ class ReminderCog(commands.Cog):
                 description="How often should this reminder occur?",
                 autocomplete=auto_frequency
             ),
+            pester: str = commands.Param(
+                description="[WIP] How often to send follow up reminders if not completed?",
+                autocomplete=auto_frequency,
+                default=None
+            ),
+            limit: int = commands.Param(
+                description="How many times should this reminder occur?",
+                default=None
+            ),
             time: str = commands.Param(
                 description="When should this reminder occur?",
                 autocomplete=auto_time,
-                default=str(datetime.now()),
+                default=None,
             ),
             title: str = commands.Param(
                 description="Name to give the reminder?",
@@ -168,29 +216,34 @@ class ReminderCog(commands.Cog):
                 if not destination:
                     destination = inter.channel.id
 
-        try:
-            time = datetime.fromisoformat(time)
-        except ValueError:
+        if time:
             try:
-                time = datetime.strptime(time, "%A, %B %d %Y %I:%M %p")
-            except Exception as e:
-                print(f"{RED}[ERROR] Failed to parse time: {e}{RESET}")
-                embed = Embed(
-                    color=get_color_from_priority("high"),
-                    title="Error",
-                    description=f"Failed to parse time for reminder: {e}"
-                )
-                await inter.response.send_message(
-                    embed=embed,
-                    ephemeral=True,
-                )
-                return
+                time = datetime.fromisoformat(time)
+            except ValueError:
+                try:
+                    time = datetime.strptime(time, "%A, %B %d %Y %I:%M %p")
+                except Exception as e:
+                    print(f"{RED}[ERROR] Failed to parse time: {e}{RESET}")
+                    embed = Embed(
+                        color=get_color_from_priority("high"),
+                        title="Error",
+                        description=f"Failed to parse time for reminder: {e}"
+                    )
+                    await inter.response.send_message(
+                        embed=embed,
+                        ephemeral=True,
+                    )
+                    return
+        else:
+            time = datetime.now(timezone.utc)
         now = datetime.now(timezone.utc)
         if now + timedelta(minutes=5) >= time.astimezone(timezone.utc):
             if frequency.lower() != "once":
+                frequency = normalize_frequency(frequency)
                 time = compute_next_due(now, time, frequency)
             else:
                 time = now
+        pester = normalize_frequency(pester) if pester else None
         try:
             add_reminder(
                 creator_id=inter.user.id,
@@ -201,8 +254,11 @@ class ReminderCog(commands.Cog):
                 message=message,
                 priority=priority,
                 destination=destination,
+                limit=limit,
+                pester=pester,
             )
-            self.bot.get_cog("SendReminderCog")._schedule_one(
+            send_cog = self.bot.get_cog("SendReminderCog")
+            send_cog._schedule_one(
                 creator=inter.user.id,
                 remindee=user.id,
                 time=time,
@@ -211,7 +267,22 @@ class ReminderCog(commands.Cog):
                 message=message,
                 priority=priority,
                 destination=destination,
+                limit=limit,
+                pester=pester
             )
+            if pester:
+                send_cog._schedule_pester(
+                    creator_id=inter.user.id,
+                    remindee_id=user.id,
+                    time=time,
+                    frequency=frequency,
+                    title=title,
+                    message=message,
+                    priority=priority,
+                    destination=destination,
+                    limit=limit,
+                    pester=pester,
+                )
             description = [
                 f"Reminder created for {user.mention}."
             ]
@@ -258,14 +329,12 @@ class ReminderCog(commands.Cog):
                 default=get_setting("hide_list_message").lower() == "true",
             )
     ):
-        if not user:
-            user = inter.user
-        reminders = get_users_reminders(user.id, completed)
+        reminders = get_users_reminders(user.id if user else inter.user.id, completed)
         if not reminders:
             embed = Embed(
                 color=get_color_from_priority("high"),
                 title="No reminders",
-                description="You have no reminders."
+                description=f"{user.display_name + " has" if user else 'You have'} no reminders."
             )
             await inter.response.send_message(embed=embed, ephemeral=hide_message)
             return
@@ -282,7 +351,7 @@ class ReminderCog(commands.Cog):
 
         embed = Embed(
             color=get_color_from_priority("low"),
-            title=f"{user.display_name}'s reminders",
+            title=f"{user.display_name if user else inter.user.display_name}'s reminders",
             description="\n".join(reminder_list)
         )
         await inter.response.send_message(embed=embed, ephemeral=hide_message)

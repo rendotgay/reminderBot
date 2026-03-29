@@ -1,5 +1,17 @@
+import os
 import sqlite3
+import sys
 from typing import Optional
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
 def get_db() -> sqlite3.Connection:
@@ -12,8 +24,9 @@ def get_db() -> sqlite3.Connection:
 
 
 def create_tables():
+    schema_path = resource_path('schema.sql')
     with get_db() as db:
-        with open('schema.sql') as f:
+        with open(schema_path) as f:
             db.executescript(f.read())
 
 
@@ -63,12 +76,12 @@ def get_users_reminders(user_id, completed=False):
     with get_db() as db:
         if completed:
             return db.execute(
-                "SELECT * FROM reminders WHERE creator = ?",
+                "SELECT * FROM reminders WHERE remindee = ?",
                 (user_id,)
             ).fetchall()
         else:
             return db.execute(
-                "SELECT * FROM reminders WHERE creator = ? AND completed = FALSE",
+                "SELECT * FROM reminders WHERE remindee = ? AND completed = FALSE",
                 (user_id,)
             ).fetchall()
 
