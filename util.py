@@ -3,6 +3,7 @@ import re
 from datetime import timedelta, datetime, timezone
 from typing import Optional, Tuple
 
+from console_colors import CYAN, GREEN, RESET
 from db import set_user
 
 
@@ -16,14 +17,17 @@ def update_users(bot, target=None):
 
     if isinstance(target, (disnake.User, disnake.Member)):
         process_user(target)
+        print(f"{CYAN}Scanning user {GREEN}@{target.name}{RESET}")
 
     elif isinstance(target, disnake.Guild):
         for member in target.members:
             process_user(member)
+        print(f"{CYAN}Scanning {GREEN}{len(target.members)}{CYAN} user{'s' if len(target.members) != 1 else ''} in {target.name}{RESET}")
 
     else:
         for u in bot.users:
             process_user(u)
+        print(f"{CYAN}Scanning {GREEN}{len(bot.users)}{CYAN} user{'s' if len(bot.users) != 1 else ''}{RESET}")
             
             
 UTC = timezone.utc
@@ -39,6 +43,8 @@ def normalize_frequency(selected: str) -> str:
     s = re.sub(r"\s+", " ", s)
 
     # exact phrases
+    if s == "hourly":
+        return "HOURLY:1"
     if s == "daily":
         return "DAILY:1"
     if s == "weekly":
@@ -53,6 +59,11 @@ def normalize_frequency(selected: str) -> str:
     _NUM = r"(\d+(?:\.\d+)?)"
 
     # "X times per day/week/month"
+    m = re.fullmatch(_NUM + r" times per hour", s)
+    if m:
+        n = int(float(m.group(1)))
+        return f"HOURLY:{max(1, n)}"
+
     m = re.fullmatch(_NUM + r" times per day", s)
     if m:
         n = int(float(m.group(1)))
@@ -69,6 +80,11 @@ def normalize_frequency(selected: str) -> str:
         return f"MONTHLY:{max(1, n)}"
 
     # "every X days/weeks"
+    m = re.fullmatch(r"every " + _NUM + r" hours?", s)
+    if m:
+        n = int(float(m.group(1)))
+        return f"EVERY_HOURS:{max(1, n)}"
+
     m = re.fullmatch(r"every " + _NUM + r" days?", s)
     if m:
         n = int(float(m.group(1)))
@@ -101,6 +117,13 @@ def _add_months(dt: datetime, months: int) -> datetime:
 def _parse_frequency(freq: str) -> Tuple[str, Optional[int]]:
     # returns (kind, n)
     f = (freq or "").strip().upper()
+
+    if f.startswith("HOURLY:"):
+        try:
+            n = int(f.split(":", 1)[1])
+            return ("HOURLY", max(1, n))
+        except ValueError:
+            return ("HOURLY", 1)
 
     if f.startswith("DAILY:"):
         try:
@@ -206,6 +229,14 @@ def compute_next_due(
     base = _effective_base(now_utc, last_reminded_utc, frequency)
 
     kind, n = _parse_frequency(frequency)
+    print(f"frequency: {frequency} -> {kind} {n}")
+
+    if kind == "HOURLY":
+        interval = timedelta(hours=1) / n
+        due = base + interval
+        while due <= now_utc:
+            due += interval
+        return due
 
     if kind == "DAILY":
         interval = timedelta(days=1) / n

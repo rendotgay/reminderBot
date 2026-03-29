@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS reminders (
     remindee INTEGER,
     time DATETIME,
     frequency TEXT,
+    pester TEXT,
+    limits INTEGER,
     title TEXT,
     message TEXT,
     priority TEXT,

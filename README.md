@@ -8,6 +8,8 @@ A Python Discord bot to set and receive reminders
 - Repeating reminders
 - Mark reminders as completed
 - List reminders
+- Pester reminders (Followup reminders if not completed)
+- Reminder limits
 
 ## Planned Features
 - Completed alerts

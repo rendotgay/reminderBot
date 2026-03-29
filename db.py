@@ -46,11 +46,11 @@ def set_user_locale(user_id, locale):
         )
 
 
-def add_reminder(creator_id, remindee_id, time, frequency, title, message, priority, destination):
+def add_reminder(creator_id, remindee_id, time, frequency, title, message, priority, destination, limit, pester):
     with get_db() as db:
         db.execute(
-            "INSERT INTO reminders (creator, remindee, time, frequency, title, message, priority, destination) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (creator_id, remindee_id, time, frequency, title, message, priority, destination)
+            "INSERT INTO reminders (creator, remindee, time, frequency, title, message, priority, destination, limits, pester) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (creator_id, remindee_id, time, frequency, title, message, priority, destination, limit, pester)
         )
 
 
@@ -76,8 +76,16 @@ def get_users_reminders(user_id, completed=False):
 def update_reminder_time(creator_id, remindee_id, time):
     with get_db() as db:
         db.execute(
-            "UPDATE reminders SET time = ? AND completed = FALSE WHERE creator = ? AND remindee = ?",
+            "UPDATE reminders SET time = ?, completed = FALSE WHERE creator = ? AND remindee = ?",
             (time, creator_id, remindee_id)
+        )
+
+
+def update_reminder_limit(creator_id, remindee_id, limit):
+    with get_db() as db:
+        db.execute(
+            "UPDATE reminders SET limits = ? WHERE creator = ? AND remindee = ?",
+            (limit, creator_id, remindee_id)
         )
 
 
@@ -115,6 +123,14 @@ def get_previous_locations(user_id):
             "SELECT destination FROM reminders WHERE creator = ?",
             (user_id,)
         ).fetchall()
+
+
+def is_reminder_completed(creator_id: int, remindee_id: int, title: str) -> bool:
+    with get_db() as db:
+        return db.execute(
+            "SELECT completed FROM reminders WHERE creator = ? AND remindee = ? AND title = ?",
+            (creator_id, remindee_id, title)
+        ).fetchone()['completed']
 
 
 if __name__ == "__main__":
