@@ -16,8 +16,6 @@ def create_bot():
     return commands.InteractionBot(intents=intents)
 
 
-# bot.i18n.load("locale/")
-
 EXTENSIONS = (
     "cogs.lifecycle",
     "cogs.reminder",
@@ -27,7 +25,7 @@ EXTENSIONS = (
 
 def load_extensions(bot) -> None:
     for ext in EXTENSIONS:
-        print(f"{YELLOW}[INFO] Loading {ext.replace('cogs.', '')}{RESET}")
+        print(f"[INFO]{YELLOW} Loading {ext.replace('cogs.', '')}{RESET}")
         try:
             bot.load_extension(ext)
         except Exception as e:
@@ -56,6 +54,7 @@ def main():
 
 def get_token():
     token = get_setting("token")
+    # If not user token, take user input from console
     while not token:
         print(f"{RED}[ERROR] Valid Discord token not set!{RESET}")
         print(f"{YELLOW}To get a token, visit https://discord.com/developers/applications{RESET}")

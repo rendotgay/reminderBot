@@ -6,6 +6,7 @@ CONFIG_PATH = Path("config.json")
 
 def _load():
     if not CONFIG_PATH.exists():
+        # Create a new config file with defaults
         CONFIG_PATH.write_text(json.dumps({
             "token": "YOUR_DISCORD_TOKEN_HERE",
             "low_priority_color": "90EE90",

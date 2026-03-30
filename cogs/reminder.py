@@ -8,17 +8,17 @@ import pytz
 from disnake import Embed, OptionChoice
 from disnake.ext import commands
 
-from colors import get_color_from_priority
 from config import get_setting
 from console_colors import RED, RESET
 from db import add_reminder, get_user_tz, get_last_location, get_previous_locations, get_users_reminders
-from util import update_users, compute_next_due, normalize_frequency
+from util import update_users, compute_next_due, normalize_frequency, get_color_from_priority
 
 
 class ReminderCog(commands.Cog):
     def __init__(self, bot: commands.InteractionBot):
         self.bot = bot
 
+    # Parse user input for frequencies
     @staticmethod
     async def auto_frequency(
             inter: disnake.ApplicationCommandInteraction,
@@ -87,6 +87,7 @@ class ReminderCog(commands.Cog):
         return options[:25]
 
 
+    # Provide locations to send reminders
     async def auto_destination(
             self,
             inter: disnake.ApplicationCommandInteraction,
@@ -120,6 +121,8 @@ class ReminderCog(commands.Cog):
         return d[:25]
 
 
+    # TODO: Replace with custom date parser, but this works fine for it's use case
+    # Get date and time from user input
     @staticmethod
     async def auto_time(
             inter: disnake.ApplicationCommandInteraction,
@@ -141,6 +144,7 @@ class ReminderCog(commands.Cog):
                 return [OptionChoice(name=parsed_time.strftime("%A, %B %d %Y %I:%M %p"), value=str(parsed_time))]
 
 
+    # Sub command for reminders, allows commands to start with "/reminder "
     @commands.slash_command(
         name="reminder",
         description="Manage reminders"
@@ -151,6 +155,7 @@ class ReminderCog(commands.Cog):
         pass
 
 
+    # Create new reminders
     @reminder.sub_command(
         name="create",
         description="Create a new reminder"
@@ -199,29 +204,36 @@ class ReminderCog(commands.Cog):
                 default=get_setting("hide_confirmation_message").lower() == "true",
             ),
     ):
+        # Get up to date user data
         update_users(self.bot, target=user)
 
+        # Parse destination
         if destination == "Here":
             destination = inter.channel.id
 
         if destination == "Default":
             destination = get_setting("default_reminder_channel")
+            # Fallback to "Here" if no default reminder channel is set
             if not destination:
-                print(f"[ERROR] No default reminder channel set")
+                print(f"{RED}[ERROR] No default reminder channel set")
                 destination = inter.channel.id
         if destination == "Last":
             destination = get_last_location(inter.user.id)
+            # Fallback to "Default" if no last location
             if not destination:
                 destination = get_setting("default_reminder_channel")
+                # Fallback to "Here" if no default reminder channel is set
                 if not destination:
                     destination = inter.channel.id
 
+        # Parse datetime
         if time:
             try:
                 time = datetime.fromisoformat(time)
             except ValueError:
                 try:
                     time = datetime.strptime(time, "%A, %B %d %Y %I:%M %p")
+                # If parsing fails, send error message instead of defaulting to now to avoid incorrectly timed reminders
                 except Exception as e:
                     print(f"{RED}[ERROR] Failed to parse time: {e}{RESET}")
                     embed = Embed(
@@ -234,8 +246,10 @@ class ReminderCog(commands.Cog):
                         ephemeral=True,
                     )
                     return
+        # Default to now if no time is provided
         else:
             time = datetime.now(timezone.utc)
+        # Get next due time from frequency and datetime
         now = datetime.now(timezone.utc)
         if now + timedelta(minutes=5) >= time.astimezone(timezone.utc):
             if frequency.lower() != "once":
@@ -244,6 +258,7 @@ class ReminderCog(commands.Cog):
             else:
                 time = now
         pester = normalize_frequency(pester) if pester else None
+        # Insert and schedule reminder
         try:
             add_reminder(
                 creator_id=inter.user.id,
@@ -283,6 +298,7 @@ class ReminderCog(commands.Cog):
                     limit=limit,
                     pester=pester,
                 )
+            # Build response
             description = [
                 f"Reminder created for {user.mention}."
             ]
@@ -309,6 +325,7 @@ class ReminderCog(commands.Cog):
             ephemeral=hide_message,
         )
 
+    # List of users reminders
     @reminder.sub_command(
         name="list",
         description="List reminders"
@@ -338,6 +355,7 @@ class ReminderCog(commands.Cog):
             )
             await inter.response.send_message(embed=embed, ephemeral=hide_message)
             return
+        # Build response
         creators = {}
         reminder_list = []
         for reminder in reminders:

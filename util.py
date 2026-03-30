@@ -1,8 +1,11 @@
 import calendar
 import re
 from datetime import timedelta, datetime, timezone
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Literal
 
+from disnake import Color
+
+from config import get_setting
 from console_colors import CYAN, GREEN, RESET
 from db import set_user
 
@@ -17,17 +20,17 @@ def update_users(bot, target=None):
 
     if isinstance(target, (disnake.User, disnake.Member)):
         process_user(target)
-        print(f"{CYAN}Scanning user {GREEN}@{target.name}{RESET}")
+        print(f"[DB] {CYAN}Scanning user {GREEN}@{target.name}{RESET}")
 
     elif isinstance(target, disnake.Guild):
         for member in target.members:
             process_user(member)
-        print(f"{CYAN}Scanning {GREEN}{len(target.members)}{CYAN} user{'s' if len(target.members) != 1 else ''} in {target.name}{RESET}")
+        print(f"[DB] {CYAN}Scanning {GREEN}{len(target.members)}{CYAN} user{'s' if len(target.members) != 1 else ''} in {target.name}{RESET}")
 
     else:
         for u in bot.users:
             process_user(u)
-        print(f"{CYAN}Scanning {GREEN}{len(bot.users)}{CYAN} user{'s' if len(bot.users) != 1 else ''}{RESET}")
+        print(f"[DB] {CYAN}Scanning {GREEN}{len(bot.users)}{CYAN} user{'s' if len(bot.users) != 1 else ''}{RESET}")
             
             
 UTC = timezone.utc
@@ -305,3 +308,13 @@ def compute_next_due(
     while due <= now_utc:
         due += interval
     return due
+
+
+# Parse config for priority colors
+def get_color_from_priority(priority: Literal['low', 'medium', 'high']):
+    hex = {
+        'low': get_setting('low_priority_color'),
+        'medium': get_setting('medium_priority_color'),
+        'high': get_setting('high_priority_color'),
+    }[priority]
+    return Color(int(f"0x{hex.replace("#", "")}", 16))

@@ -1,7 +1,7 @@
 from disnake import ButtonStyle, MessageInteraction, Embed
 from disnake.ui import View, button, Button
 
-from colors import get_color_from_priority
+from util import get_color_from_priority
 from db import complete_reminder, get_user, delete_reminder
 
 

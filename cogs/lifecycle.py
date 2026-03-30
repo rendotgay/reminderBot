@@ -16,10 +16,11 @@ class LifecycleCog(commands.Cog):
         await self.bot.change_presence(
             activity=disnake.CustomActivity(name="testing!")
         )
-        print(f"{CYAN}Logged in as {GREEN}{self.bot.user}{CYAN}!{RESET}")
+        print(f"[INFO] {CYAN}Logged in as {GREEN}{self.bot.user}{CYAN}!{RESET}")
         update_users(self.bot)
 
 
+    # Store user data for future use
     @commands.Cog.listener()
     async def on_interaction(self, inter: disnake.Interaction):
         u = getattr(inter, "user", None)
@@ -32,13 +33,13 @@ class LifecycleCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: disnake.Guild):
-        print(f"{GREEN}Bot joined new server: {YELLOW}{guild.name}{RESET}")
+        print(f"[INFO] {GREEN}Bot joined new server: {YELLOW}{guild.name}{RESET}")
         update_users(self.bot, target=guild)
 
 
     @commands.Cog.listener()
     async def on_member_join(self, member: disnake.Member):
-        print(f"{GREEN}New member {YELLOW}{member.name}{GREEN} joined {YELLOW}{member.guild.name}{RESET}")
+        print(f"[INFO] {GREEN}New member {YELLOW}{member.name}{GREEN} joined {YELLOW}{member.guild.name}{RESET}")
         update_users(self.bot, target=member)
 
 
