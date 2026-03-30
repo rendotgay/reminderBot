@@ -1,6 +1,7 @@
 from disnake import ButtonStyle, MessageInteraction, Embed
 from disnake.ui import View, button, Button
 
+from console_colors import RED, RESET
 from util import get_color_from_priority
 from db import complete_reminder, get_user, delete_reminder
 
@@ -43,6 +44,11 @@ class ReminderView(View):
             )
             view = UndoCompleteView(self.creator, self.remindee, self.title, self.embed)
             await inter.response.edit_message(embed=embed, view=view, content=None)
+        lifecycle_cog = inter.bot.get_cog("LifecycleCog")
+        if lifecycle_cog:
+            await lifecycle_cog.update_presence()
+        else:
+            print(f"{RED}[ERROR] Lifecycle cog not found{RESET}")
 
     @button(label="🗑️", style=ButtonStyle.red)
     async def delete(
@@ -97,6 +103,11 @@ class DeleteReminderView(View):
             description=f'Reminder for "*{self.title}*" has been deleted by {inter.user.display_name}'
         )
         await inter.response.edit_message(embed=embed, view=None)
+        lifecycle_cog = inter.bot.get_cog("LifecycleCog")
+        if lifecycle_cog:
+            await lifecycle_cog.update_presence()
+        else:
+            print(f"{RED}[ERROR] Lifecycle cog not found{RESET}")
 
 
 class UndoCompleteView(View):
@@ -124,3 +135,8 @@ class UndoCompleteView(View):
         if self.embed:
             view = ReminderView(self.creator, self.remindee, self.title, self.embed)
             await inter.edit_original_message(embed=self.embed, view=view, content=None)
+        lifecycle_cog = inter.bot.get_cog("LifecycleCog")
+        if lifecycle_cog:
+            await lifecycle_cog.update_presence()
+        else:
+            print(f"{RED}[ERROR] Lifecycle cog not found{RESET}")

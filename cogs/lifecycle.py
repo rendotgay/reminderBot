@@ -2,7 +2,7 @@ import disnake
 from disnake.ext import commands
 
 from console_colors import GREEN, YELLOW, RESET, CYAN
-from db import set_user_locale
+from db import set_user_locale, get_incomplete_reminders
 from util import update_users
 
 
@@ -13,11 +13,16 @@ class LifecycleCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await self.bot.change_presence(
-            activity=disnake.CustomActivity(name="testing!")
-        )
+        await self.update_presence()
         print(f"[INFO] {CYAN}Logged in as {GREEN}{self.bot.user}{CYAN}!{RESET}")
         update_users(self.bot)
+
+
+    async def update_presence(self):
+        reminder_count = get_incomplete_reminders()
+        await self.bot.change_presence(
+            activity=disnake.CustomActivity(name=f"{reminder_count} incomplete reminder{'s' if int(reminder_count) != 1 else ''}!")
+        )
 
 
     # Store user data for future use

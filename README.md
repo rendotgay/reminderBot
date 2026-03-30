@@ -16,6 +16,7 @@ A Python Discord bot to set and receive reminders
 - Group reminders
 - Delete reminders
 - Language support
+- Set timezone
 
 ## Technology Stack
 - Disnake (Fork of discord.py, a Discord API python wrapper)

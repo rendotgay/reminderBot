@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timedelta, timezone
+from sqlite3 import IntegrityError
 from typing import List
 
 import dateparser
@@ -163,7 +164,9 @@ class ReminderCog(commands.Cog):
     async def reminder_create(
             self,
             inter: disnake.ApplicationCommandInteraction,
-            user: disnake.User | disnake.Member,
+            user: disnake.User | disnake.Member = commands.Param(
+                description="Who should this reminder for?"
+            ),
             frequency: str = commands.Param(
                 description="How often should this reminder occur?",
                 autocomplete=auto_frequency
@@ -215,7 +218,7 @@ class ReminderCog(commands.Cog):
             destination = get_setting("default_reminder_channel")
             # Fallback to "Here" if no default reminder channel is set
             if not destination:
-                print(f"{RED}[ERROR] No default reminder channel set")
+                print(f"{RED}[ERROR] No default reminder channel set! Falling back to 'Here'")
                 destination = inter.channel.id
         if destination == "Last":
             destination = get_last_location(inter.user.id)
@@ -312,8 +315,16 @@ class ReminderCog(commands.Cog):
             )
             embed.set_author(name="Reminder created!")
             embed.set_footer(text="Next reminder")
+        except IntegrityError:
+            print(f"{RED}[ERROR] Reminder not unique!{RESET}")
+            embed = Embed(
+                color=get_color_from_priority("high"),
+                title="Error",
+                description=f"Reminder already exists!"
+            )
+            hide_message = True
         except Exception as e:
-            print(f"{RED}[ERROR] Failed to create reminder: {e}{RESET}")
+            print(f"{RED}[ERROR] Failed to create reminder: [{e.__class__.__name__}] {e}{RESET}")
             embed = Embed(
                 color=get_color_from_priority("high"),
                 title="Error",
@@ -324,6 +335,11 @@ class ReminderCog(commands.Cog):
             embed=embed,
             ephemeral=hide_message,
         )
+        lifecycle_cog = self.bot.get_cog("LifecycleCog")
+        if lifecycle_cog:
+            await lifecycle_cog.update_presence()
+        else:
+            print(f"{RED}[ERROR] Lifecycle cog not found{RESET}")
 
     # List of users reminders
     @reminder.sub_command(

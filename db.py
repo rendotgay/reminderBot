@@ -72,6 +72,11 @@ def get_reminders():
         return db.execute("SELECT * FROM reminders").fetchall()
 
 
+def get_incomplete_reminders():
+    with get_db() as db:
+        return db.execute("SELECT COUNT(*) FROM reminders WHERE completed = 0").fetchone()[0]
+
+
 def get_users_reminders(user_id, completed=False):
     with get_db() as db:
         if completed:
@@ -123,11 +128,15 @@ def get_last_location(user_id):
             "SELECT destination FROM reminders WHERE creator = ? AND destination != 'Direct Message'",
             (user_id,)
         ).fetchone()
+
         if result:
-            return result
-        return db.execute(
+            return result[0]
+
+        result = db.execute(
             "SELECT destination FROM reminders WHERE destination != 'Direct Message'"
         ).fetchone()
+
+        return result[0] if result else None
 
 
 def get_previous_locations(user_id):
