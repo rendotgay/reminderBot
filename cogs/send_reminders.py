@@ -162,7 +162,8 @@ class SendReminderCog(commands.Cog):
         now = datetime.now(timezone.utc)
         next_due = compute_next_due(now, time, frequency)
         update_reminder_time(creator, remindee, next_due)
-        update_reminder_limit(creator, remindee, limit - 1)
+        if limit is not None:
+            update_reminder_limit(creator, remindee, limit - 1)
         self._schedule_one(creator, remindee, next_due, frequency, title, message, priority, destination, limit, pester)
 
 
